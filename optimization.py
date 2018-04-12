@@ -55,7 +55,7 @@ def d_theta_wrt_antidote(U, V, U_tilde, W, W_antidote, lambda_):
                U_tilde.T.dot(np.diag(1.0*W_antidote.T[j])).dot(U_tilde) for j in range(d)]
                
     sigma_V_inv = [np.linalg.inv(sigma_Vj + lambda_*np.eye(l)) for sigma_Vj in sigma_V]
-
+    
     L = []
     for i in range(n_prime):
         diag = [sigma_V_inv[j].dot(U_tilde[i]) for j in range(d)]
@@ -238,7 +238,6 @@ class gradient_descent_LS(opt_alg):
             else:
                 obj = obj_new
                 t = 0
-                
             X_antidote_hist.append(X_antidote.copy())
             error_hist.append(error)
             obj_value_hist.append(obj_new)

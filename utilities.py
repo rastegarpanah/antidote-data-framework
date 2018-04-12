@@ -55,9 +55,9 @@ class individual_loss_variance():
             
         losses = self.get_losses(X_est)
         n = len(losses)
-        B = n*losses - losses.sum()
+        B = losses - losses.mean()
         C = B.divide(self.omega_user)
-        C = (4.0/(n**2)) * C
+        C = (4.0/n) * C
         D = diff.multiply(C,axis=0)
         G = D.fillna(0).values
         if self.axis == 0:

@@ -6,9 +6,10 @@ import MF
 reload(MF)
 
 #Read Movielens Dataset
-n_users=600
-n_movies=2000
-X, genres = MF.read_movielens(n_movies, n_users)
+n_users=4000
+n_movies=1000
+#X, genres = MF.read_movielens_1M(n_movies, n_users)
+X, genres, user_info = MF.read_movielens_1M(n_movies, n_users)
 
 #Factorization parameters
 rank = 4

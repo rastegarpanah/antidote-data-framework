@@ -7,16 +7,16 @@ from abc import ABCMeta, abstractmethod
 reload(als)
 reload(lmafit)
 
-def read_movielens(n_movies, n_users, data_dir='Data'):
+def read_movielens_small(n_movies, n_users, data_dir='MovieLens-small'):
     # get ratings
-    df = pd.read_csv('{}/ratings.csv'.format(data_dir))
+    df = pd.read_csv('Data/{}/ratings.csv'.format(data_dir))
 
     # create a dataframe with movie IDs on the rows
     # and user IDs on the columns
     ratings = df.pivot(index='movieId', columns='userId', values='rating')
 
     # put movie titles as index on rows
-    movies = pd.read_csv('{}/movies.csv'.format(data_dir))
+    movies = pd.read_csv('Data/{}/movies.csv'.format(data_dir))
     movieSeries = pd.Series(list(movies['title']),
                              index=movies['movieId'])
     ratings = ratings.rename(index=movieSeries)
@@ -41,6 +41,46 @@ def read_movielens(n_movies, n_users, data_dir='Data'):
     ratings = ratings.drop(null_column_ids, axis=1)
     ratings = ratings.T
     return ratings, movie_genres
+
+def read_movielens_1M(n_movies, n_users, data_dir='MovieLens-1M'):
+    # get ratings
+    df = pd.read_table('Data/{}/ratings.dat'.format(data_dir),names=['UserID','MovieID','Rating','Timestamp'], 
+                       sep='::', engine='python')
+
+    # create a dataframe with movie IDs on the rows
+    # and user IDs on the columns
+    ratings = df.pivot(index='MovieID', columns='UserID', values='Rating')
+
+    
+    movies = pd.read_table('Data/{}/movies.dat'.format(data_dir),
+                         names=['MovieID', 'Title', 'Genres'], 
+                         sep='::', engine='python')
+                         
+    user_info = pd.read_table('Data/{}/users.dat'.format(data_dir),
+                            names=['UserID','Gender','Age','Occupation','Zip-code'], 
+                            sep='::', engine='python')
+    user_info = user_info.rename(index=user_info['UserID'])[['Gender','Age','Occupation','Zip-code']]
+    
+    # put movie titles as index on rows
+    movieSeries = pd.Series(list(movies['Title']), index=movies['MovieID'])
+    ratings = ratings.rename(index=movieSeries)
+    
+    #read movie genres
+    movie_genres = pd.Series(list(movies['Genres']),index=movies['Title'])
+    movie_genres = movie_genres.apply(lambda s:s.split('|'))
+
+    # select the top n_movies that have the most number of ratings
+    num_ratings = (~ratings.isnull()).sum(axis=1)
+    rows = num_ratings.nlargest(n_movies)
+    ratings = ratings.loc[rows.index]
+    
+    # select the top n_users that have the most number of ratings
+    num_ratings = (~ratings.isnull()).sum(axis=0)
+    cols = num_ratings.nlargest(n_users)
+    ratings = ratings[cols.index]
+
+    ratings = ratings.T
+    return ratings, movie_genres, user_info
 
 
 class MF():
