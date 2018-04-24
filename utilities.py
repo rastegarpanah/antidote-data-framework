@@ -6,8 +6,10 @@ import pandas as pd
 class polarization():
     
     def evaluate(self, X_est):
-        pair_distances = pdist(X_est, 'euclidean')
-        return (np.sum(pair_distances**2) / len(pair_distances))
+        #pair_distances = pdist(X_est, 'euclidean')
+        #return (np.sum(pair_distances**2) / len(pair_distances))
+        #return (np.sum(pair_distances**2) / (X_est.shape[0])**2 )
+        return X_est.var(axis=0,ddof=0).sum()
 
     def gradient(self, X_est):
         """
@@ -15,11 +17,8 @@ class polarization():
         estimated ratings of the original users.
         The output is an n by d matrix which is flatten.
         """
-        X_est = X_est.values
-        n,d = X_est.shape    
-        D = (n*X_est) - np.tile(X_est.sum(axis=0),(n,1))
-        D = (2*D) / comb(n,2,exact=True)
-        return  D.flatten()
+        D = X_est - X_est.mean()
+        return  D.values.flatten()
 
 
 class individual_loss_variance():
@@ -54,10 +53,10 @@ class individual_loss_variance():
             diff = diff.T
             
         losses = self.get_losses(X_est)
-        n = len(losses)
+        #n = len(losses)
         B = losses - losses.mean()
         C = B.divide(self.omega_user)
-        C = (4.0/n) * C
+        #C = (4.0/n) * C
         D = diff.multiply(C,axis=0)
         G = D.fillna(0).values
         if self.axis == 0:
@@ -118,7 +117,7 @@ class group_loss_variance():
         The output is an n by d matrix which is flatten.
         """
         group_losses = self.get_losses(X_est)
-        n_group = len(self.G)
+        #n_group = len(self.G)
         
         X = self.X.mask(~self.omega)
         if self.axis == 0:
@@ -130,14 +129,14 @@ class group_loss_variance():
             print 'dimension error'
             return
         
-        user_losses ={}
+        user_group_losses ={}
         for user in X.index:
-            user_losses[user] = group_losses[self.group_id[user]]
-        losses = pd.Series(user_losses)
+            user_group_losses[user] = group_losses[self.group_id[user]]
+        losses = pd.Series(user_group_losses)
         
-        B = (n_group*losses) - group_losses.sum()
+        B = losses - group_losses.mean()
         C = B.divide(self.omega_user)
-        C = (4.0/(n_group**2)) * C
+        #C = (4.0/n_group) * C
         D = diff.multiply(C,axis=0)
         G = D.fillna(0).values
         if self.axis == 0:

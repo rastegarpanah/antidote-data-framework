@@ -81,6 +81,45 @@ def read_movielens_1M(n_movies, n_users, data_dir='MovieLens-1M'):
 
     ratings = ratings.T
     return ratings, movie_genres, user_info
+    
+def train_val_split(omega,alpha):
+    
+    def split_known_indices(x,alpha):
+        known_ratings = x[x.values].index
+        val = list(np.random.choice(known_ratings, size =int(np.rint(alpha*len(known_ratings))), replace=False))
+        train = list(set(known_ratings) - set(val))
+        return {'train':train, 'val':val}
+        
+    def f1(x, indices):
+        a = x.copy()
+        a[indices[x.name]] = True
+        return a
+    
+    splits = omega.apply(split_known_indices, args=[alpha], axis=1)
+    n,d = omega.shape
+    T = np.zeros((n,d), dtype=bool)
+    T = pd.DataFrame(T, index=omega.index, columns=omega.columns).copy()
+
+    train_indices = splits.apply(lambda d:d['train'])
+    val_indices =   splits.apply(lambda d:d['val'])
+    
+    omega_train = T.apply(f1, args=[train_indices], axis=1)
+    omega_val = T.apply(f1, args=[val_indices], axis=1)
+    
+    return omega_train, omega_val
+
+def compute_RMSE(X1,X2,omega):
+    X1 = X1.mask(~omega)
+    X2 = X2.mask(~omega)
+    MSE = ((X1 - X2).pow(2).sum().sum()*1.0)/omega.sum().sum()
+    return np.sqrt(MSE)
+    
+def antidote_effect(RS, X, X_antidote):
+    ratings = pd.concat([X,X_antidote])
+    pred,error = RS.fit_model(ratings)
+    V = RS.get_V()
+    U = RS.get_U().loc[X.index]
+    return U,V,U.dot(V)
 
 
 class MF():
@@ -113,7 +152,7 @@ class MF():
         
 class als_MF(MF):
     
-    def fit_model(self, ratings=None, max_iter=100, threshold=0.001):
+    def fit_model(self, ratings=None, max_iter=100, threshold=1e-4):
         X = self.ratings if ratings is None else ratings
         self.ratings = X
         self.U, self.V = als.als(X, self.rank, self.lambda_, max_iter, threshold)

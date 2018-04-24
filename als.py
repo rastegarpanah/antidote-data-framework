@@ -43,8 +43,9 @@ def als(X,k,lambda_,max_iter,threshold):
         U_new = solve_U(X,W,V)
         V_new = solve_V(X,W,U)
         MSE_new = ((X - U_new.dot(V_new.T)).pow(2).sum().sum()*1.0)/n_known
-        if (MSE - MSE_new) < MSE*threshold:
-            #MSEs.append(MSE_new)
+        #if (MSE - MSE_new) < MSE*threshold:
+        if (MSE - MSE_new) < threshold:
+            MSEs.append(MSE_new)
             break
         else:
             MSEs.append(MSE_new)
@@ -52,5 +53,6 @@ def als(X,k,lambda_,max_iter,threshold):
             U = U_new
             V = V_new
     #print "Error history",MSEs
+    #print "iter:", i
     return U,V.T
 

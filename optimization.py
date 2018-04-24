@@ -131,6 +131,9 @@ def optimal_stepsize(MF,X,X_antidote,utility,G,direction,projection,steps):
     best = min(results,key=lambda a:a[1]) if direction>0 else max(results,key=lambda a:a[1])
     print best[0]
     return best[0]
+    
+def LineSearch_steps(max_step,num_steps):
+    return [(1.0*max_step)/10**k for k in range(num_steps)]
 
 
 class projection():
