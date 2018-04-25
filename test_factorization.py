@@ -6,7 +6,7 @@ import MF
 reload(MF)
 
 #Read Movielens Dataset
-n_users=4000
+n_users=1000
 n_movies=2000
 X, genres, user_info = MF.read_movielens_1M(n_movies, n_users)
 
@@ -14,7 +14,7 @@ known = X.count().sum() / (1.0*X.size)
 
 #Factorization parameters
 rank = 4
-lambda_ = 0.1 #Ridge regularizer parameter
+lambda_ = 1.0 #Ridge regularizer parameter
 
 #Initiate a recommender system of type ALS
 RS = MF.als_MF(rank,lambda_)

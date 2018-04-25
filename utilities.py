@@ -18,7 +18,9 @@ class polarization():
         The output is an n by d matrix which is flatten.
         """
         D = X_est - X_est.mean()
-        return  D.values.flatten()
+        G = D.values
+        #return  G.flatten()
+        return  G
 
 
 class individual_loss_variance():
@@ -61,7 +63,8 @@ class individual_loss_variance():
         G = D.fillna(0).values
         if self.axis == 0:
             G = G.T
-        return  G.flatten()
+        #return  G.flatten()
+        return  G
 
 
 class group_loss_variance():
@@ -141,4 +144,5 @@ class group_loss_variance():
         G = D.fillna(0).values
         if self.axis == 0:
             G = G.T
-        return  G.flatten()
+        #return  G.flatten()
+        return  G

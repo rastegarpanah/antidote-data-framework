@@ -9,7 +9,13 @@ import random
 import timeit
 import itertools
 
-def d_theta_wrt_antidote_slow(U, V, U_tilde, W, W_antidote, lambda_):#this can be faster than the next fucntion if data is very sparse
+def outer_sum(M,indices):
+        S = np.zeros((M.shape[1],M.shape[1]))
+        for i in indices:
+            S += np.outer(M[i],M[i])
+        return S
+
+def d_theta_wrt_antidote_general(U, V, U_tilde, W, W_antidote, lambda_):
     """
     Returns the gradient of each element of the optimal 
     factor V with respect to each element of the antidote data.
@@ -31,6 +37,8 @@ def d_theta_wrt_antidote_slow(U, V, U_tilde, W, W_antidote, lambda_):#this can b
     
     sigma_V = [outer_sum(U,known_ratings_per_item[j]) +
                outer_sum(U_tilde,known_ratings_per_item_antidote[j]) for j in range(d)]
+    #sigma_V = [U.T.dot(np.diag(1.0*W.T[j])).dot(U) +
+    #           U_tilde.T.dot(np.diag(1.0*W_antidote.T[j])).dot(U_tilde) for j in range(d)]
     sigma_V_inv = [np.linalg.inv(sigma_Vj + lambda_*np.eye(l)) for sigma_Vj in sigma_V]
 
     L = []
@@ -38,7 +46,7 @@ def d_theta_wrt_antidote_slow(U, V, U_tilde, W, W_antidote, lambda_):#this can b
         diag = [sigma_V_inv[j].dot(U_tilde[i]) for j in range(d)]
         L.append(sp.linalg.block_diag(*diag))
     D = np.vstack(tuple(L))
-    return D 
+    return D
     
 def d_theta_wrt_antidote(U, V, U_tilde, W, W_antidote, lambda_):
     """
@@ -51,10 +59,35 @@ def d_theta_wrt_antidote(U, V, U_tilde, W, W_antidote, lambda_):
     d = V.shape[0]
     n_prime = U_tilde.shape[0]
                
-    sigma_V = [U.T.dot(np.diag(1.0*W.T[j])).dot(U) +
-               U_tilde.T.dot(np.diag(1.0*W_antidote.T[j])).dot(U_tilde) for j in range(d)]
+    sigma_V = [U.T.dot(np.diag(1.0*W.T[j])).dot(U) + 
+               U_tilde.T.dot(U_tilde) + 
+               lambda_*np.eye(l)   for j in range(d)]
+    sigma_V_inv = [np.linalg.inv(sigma_Vj) for sigma_Vj in sigma_V]
+    
+    L = []
+    for i in range(n_prime):
+        diag = [sigma_V_inv[j].dot(U_tilde[i]) for j in range(d)]
+        L.append(sp.linalg.block_diag(*diag))
+    D = np.vstack(tuple(L))
+    return D
+        
+def d_theta_wrt_antidote_fast(U, V, U_tilde, W, W_antidote, lambda_):
+    """
+    Returns the gradient of each element of the optimal 
+    factor V with respect to each element of the antidote data.
+    The output is a n'*d by l*d matrix that contains aproximated 
+    partial derivates computed based on the method in [li2016data].
+    """
+    n,l = U.shape
+    d = V.shape[0]
+    n_prime = U_tilde.shape[0]
+    
+    known_ratings_per_item = [np.where(W.T[i])[0] for i in range(W.shape[1])]
                
-    sigma_V_inv = [np.linalg.inv(sigma_Vj + lambda_*np.eye(l)) for sigma_Vj in sigma_V]
+    sigma_V = [outer_sum(U,known_ratings_per_item[j]) + 
+               U_tilde.T.dot(U_tilde) + 
+               lambda_*np.eye(l)   for j in range(d)]
+    sigma_V_inv = [np.linalg.inv(sigma_Vj) for sigma_Vj in sigma_V]
     
     L = []
     for i in range(n_prime):
@@ -74,7 +107,7 @@ def d_est_wrt_theta(U,V):
     D = np.hstack(tuple([sp.linalg.block_diag(*(d*[U[i].reshape(1,len(U[i])).T])) for i in range(n)]))
     return D
     
-def compute_gradient(MF,utility, X, X_antidote, U, V, U_tilde):
+def compute_gradient_slow(MF,utility, X, X_antidote, U, V, U_tilde):
     X_est = U.dot(V)
     U = U.values
     U_tilde = U_tilde.values
@@ -93,7 +126,26 @@ def compute_gradient(MF,utility, X, X_antidote, U, V, U_tilde):
         G1 = csr_matrix(G1)
         G2 = csr_matrix(G2)
         gradient = G1.dot(G2.dot(G3))
-      
+    return gradient.reshape((X_antidote.shape[0],X_antidote.shape[1]))
+
+def compute_gradient(MF,utility, X, X_antidote, U, V, U_tilde):
+    X_est = U.dot(V)
+    U = U.values
+    U_tilde = U_tilde.values
+    V = V.T.values
+    W = ~np.isnan(X).values
+    W_antidote = ~np.isnan(X_antidote).values
+    
+    #~ if X.shape[0]>900:
+        #~ G1 = d_theta_wrt_antidote_fast(U,V,U_tilde,W,W_antidote,MF.lambda_)
+    #~ else:
+        #~ G1 = d_theta_wrt_antidote(U,V,U_tilde,W,W_antidote,MF.lambda_)
+    
+    G1 = d_theta_wrt_antidote_fast(U,V,U_tilde,W,W_antidote,MF.lambda_)
+    G2 = U.T
+    G3 = utility.gradient(X_est)#d_utility_wrt_est
+    
+    gradient = G1.dot((G2.dot(G3)).reshape(G1.shape[1],1,order='F'))
     return gradient.reshape((X_antidote.shape[0],X_antidote.shape[1]))
     
 def theta(MF, X, X_antidote, init=None):

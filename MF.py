@@ -74,10 +74,14 @@ def read_movielens_1M(n_movies, n_users, data_dir='MovieLens-1M'):
     rows = num_ratings.nlargest(n_movies)
     ratings = ratings.loc[rows.index]
     
-    # select the top n_users that have the most number of ratings
-    num_ratings = (~ratings.isnull()).sum(axis=0)
-    cols = num_ratings.nlargest(n_users)
-    ratings = ratings[cols.index]
+    #~ #select the top n_users that have the most number of ratings
+    #~ num_ratings = (~ratings.isnull()).sum(axis=0)
+    #~ cols = num_ratings.nlargest(n_users)
+    #~ ratings = ratings[cols.index]
+    
+    #pick first users in order 
+    cols = ratings.columns[0:n_users]
+    ratings = ratings[cols]
 
     ratings = ratings.T
     return ratings, movie_genres, user_info
