@@ -89,7 +89,7 @@ class group_loss_variance():
             self.omega_group[group] = (~self.X.mask(~self.omega).loc[self.G[group]].isnull()).sum().sum()
         
         omega_user = {}
-        for user in X.index:
+        for user in self.X.index:
             omega_user[user] = self.omega_group[self.group_id[user]]
         self.omega_user = pd.Series(omega_user)
         

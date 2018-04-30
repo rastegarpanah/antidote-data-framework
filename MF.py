@@ -7,9 +7,9 @@ from abc import ABCMeta, abstractmethod
 reload(als)
 reload(lmafit)
 
-def read_movielens_small(n_movies, n_users, data_dir='MovieLens-small'):
+def read_movielens_small(n_movies, n_users, data_dir='Data/MovieLens-small'):
     # get ratings
-    df = pd.read_csv('Data/{}/ratings.csv'.format(data_dir))
+    df = pd.read_csv('{}/ratings.csv'.format(data_dir))
 
     # create a dataframe with movie IDs on the rows
     # and user IDs on the columns
@@ -42,9 +42,9 @@ def read_movielens_small(n_movies, n_users, data_dir='MovieLens-small'):
     ratings = ratings.T
     return ratings, movie_genres
 
-def read_movielens_1M(n_movies, n_users, data_dir='MovieLens-1M'):
+def read_movielens_1M(n_movies, n_users, data_dir='Data/MovieLens-1M'):
     # get ratings
-    df = pd.read_table('Data/{}/ratings.dat'.format(data_dir),names=['UserID','MovieID','Rating','Timestamp'], 
+    df = pd.read_table('{}/ratings.dat'.format(data_dir),names=['UserID','MovieID','Rating','Timestamp'], 
                        sep='::', engine='python')
 
     # create a dataframe with movie IDs on the rows
@@ -52,11 +52,11 @@ def read_movielens_1M(n_movies, n_users, data_dir='MovieLens-1M'):
     ratings = df.pivot(index='MovieID', columns='UserID', values='Rating')
 
     
-    movies = pd.read_table('Data/{}/movies.dat'.format(data_dir),
+    movies = pd.read_table('{}/movies.dat'.format(data_dir),
                          names=['MovieID', 'Title', 'Genres'], 
                          sep='::', engine='python')
                          
-    user_info = pd.read_table('Data/{}/users.dat'.format(data_dir),
+    user_info = pd.read_table('{}/users.dat'.format(data_dir),
                             names=['UserID','Gender','Age','Occupation','Zip-code'], 
                             sep='::', engine='python')
     user_info = user_info.rename(index=user_info['UserID'])[['Gender','Age','Occupation','Zip-code']]
@@ -74,19 +74,21 @@ def read_movielens_1M(n_movies, n_users, data_dir='MovieLens-1M'):
     rows = num_ratings.nlargest(n_movies)
     ratings = ratings.loc[rows.index]
     
-    #~ #select the top n_users that have the most number of ratings
-    #~ num_ratings = (~ratings.isnull()).sum(axis=0)
-    #~ cols = num_ratings.nlargest(n_users)
-    #~ ratings = ratings[cols.index]
+    #select the top n_users that have the most number of ratings
+    num_ratings = (~ratings.isnull()).sum(axis=0)
+    cols = num_ratings.nlargest(n_users)
+    ratings = ratings[cols.index]
     
-    #pick first users in order 
-    cols = ratings.columns[0:n_users]
-    ratings = ratings[cols]
+    #~ #pick first users in order 
+    #~ cols = ratings.columns[0:n_users]
+    #~ ratings = ratings[cols]
 
     ratings = ratings.T
     return ratings, movie_genres, user_info
     
-def train_val_split(omega,alpha):
+def train_val_split(omega,alpha,split_axis=1):
+    if split_axis==0:
+        omega = omega.T
     
     def split_known_indices(x,alpha):
         known_ratings = x[x.values].index
@@ -110,6 +112,9 @@ def train_val_split(omega,alpha):
     omega_train = T.apply(f1, args=[train_indices], axis=1)
     omega_val = T.apply(f1, args=[val_indices], axis=1)
     
+    if split_axis==0:
+        omega_train = omega_train.T
+        omega_val = omega_val.T
     return omega_train, omega_val
 
 def compute_RMSE(X1,X2,omega):
@@ -156,7 +161,7 @@ class MF():
         
 class als_MF(MF):
     
-    def fit_model(self, ratings=None, max_iter=100, threshold=1e-4):
+    def fit_model(self, ratings=None, max_iter=100, threshold=1e-6):
         X = self.ratings if ratings is None else ratings
         self.ratings = X
         self.U, self.V = als.als(X, self.rank, self.lambda_, max_iter, threshold)

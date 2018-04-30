@@ -52,7 +52,7 @@ def als(X,k,lambda_,max_iter,threshold):
             MSE = MSE_new
             U = U_new
             V = V_new
-    #print "Error history",MSEs
-    #print "iter:", i
+    #~ print "Error history",MSEs
+    #~ print "iter:", i
     return U,V.T
 

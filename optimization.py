@@ -187,6 +187,16 @@ def optimal_stepsize(MF,X,X_antidote,utility,G,direction,projection,steps):
 def LineSearch_steps(max_step,num_steps):
     return [(1.0*max_step)/10**k for k in range(num_steps)]
 
+def single_antidote_hueristic(MF, X, projection, utility, direction,threshold=1e-6):
+    X_est,error = MF.fit_model(X)
+    U = MF.get_U()
+    G = utility.gradient(X_est)
+    b = U.sum(axis=1)
+    gradient_appr = b.dot(G)
+    a = (-1.0*np.sign(direction))*gradient_appr
+    a = np.where(np.abs(a)<threshold, 0, a)
+    return (np.sign(a)+1.0)*(projection.max_edge/2.0)
+    
 
 class projection():
     
@@ -283,6 +293,7 @@ class gradient_descent_LS(opt_alg):
         for i in range(self.max_iter):
             U, U_tilde, V, error = theta(MF,X,X_antidote)
             obj_new = utility.evaluate(U.dot(V))
+            print obj_new
             if np.abs(obj - obj_new) < 1e-6:
                 break
             if np.sign(self.stepsize)*(obj - obj_new) < self.threshold*obj:
@@ -298,6 +309,9 @@ class gradient_descent_LS(opt_alg):
             obj_value_hist.append(obj_new)
 
             G = compute_gradient(MF,utility,X,X_antidote,U,V,U_tilde)
+            #~ print G.max()
+            #~ print G.min()
+            #~ print np.abs(G).min()
             alpha = optimal_stepsize(MF,X,X_antidote,utility,G,np.sign(self.stepsize),projection,self.steps)
             X_antidote_new = X_antidote - (np.sign(self.stepsize)*alpha*G)
             X_antidote = projection.project(X_antidote_new)
@@ -358,7 +372,7 @@ class coordinate_descent(opt_alg):
         
         G1 = self.d_theta_wrt_antidote_row(U,V,U_tilde,W,W_antidote,row,MF.lambda_)
         G2 = d_est_wrt_theta(U,V)
-        G3 = utility.gradient(X_est) #d_utility_wrt_est
+        G3 = utility.gradient(X_est).flatten() #d_utility_wrt_est
 
         n,d = X.shape
         if n*d<10000:
