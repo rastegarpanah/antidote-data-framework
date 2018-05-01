@@ -3,13 +3,35 @@ from scipy.spatial.distance import pdist
 from scipy.special import comb
 import pandas as pd
 
+#~ class polarization():
+    
+    #~ def evaluate(self, X_est):
+        #~ #pair_distances = pdist(X_est, 'euclidean')
+        #~ #return (np.sum(pair_distances**2) / len(pair_distances))
+        #~ #return (np.sum(pair_distances**2) / (X_est.shape[0])**2 )
+        #~ return X_est.var(axis=0,ddof=0).sum()
+
+    #~ def gradient(self, X_est):
+        #~ """
+        #~ Returns the gradient of the divergence utility defined on the
+        #~ estimated ratings of the original users.
+        #~ The output is an n by d matrix which is flatten.
+        #~ """
+        #~ D = X_est - X_est.mean()
+        #~ G = D.values
+        #~ #return  G.flatten()
+        #~ return  G
+
+
 class polarization():
     
+    def __init__(self, omega):
+        self.unknown = ~omega
+        self.unknown_item = self.unknown.sum(axis=0)
+    
     def evaluate(self, X_est):
-        #pair_distances = pdist(X_est, 'euclidean')
-        #return (np.sum(pair_distances**2) / len(pair_distances))
-        #return (np.sum(pair_distances**2) / (X_est.shape[0])**2 )
-        return X_est.var(axis=0,ddof=0).sum()
+        X_est = X_est.mask(~self.unknown)
+        return X_est.var(ddof=0,axis=0).mean()
 
     def gradient(self, X_est):
         """
@@ -17,10 +39,12 @@ class polarization():
         estimated ratings of the original users.
         The output is an n by d matrix which is flatten.
         """
+        X_est = X_est.mask(~self.unknown)
         D = X_est - X_est.mean()
-        G = D.values
-        #return  G.flatten()
-        return  G
+        D = D.divide(self.unknown_item)
+        G = D.fillna(0).values
+        #return G.flatten()
+        return G
 
 
 class individual_loss_variance():

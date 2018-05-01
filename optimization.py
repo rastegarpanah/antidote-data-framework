@@ -147,6 +147,41 @@ def compute_gradient(MF,utility, X, X_antidote, U, V, U_tilde):
     
     gradient = G1.dot((G2.dot(G3)).reshape(G1.shape[1],1,order='F'))
     return gradient.reshape((X_antidote.shape[0],X_antidote.shape[1]))
+
+def compute_gradient_fast(MF,utility, X, X_antidote, U, V, U_tilde):
+    X_est = U.dot(V)
+    U = U.values
+    U_tilde = U_tilde.values
+    V = V.T.values
+    W = ~np.isnan(X).values
+
+    n,l = U.shape
+    d = V.shape[0]
+
+    I = MF.lambda_*np.eye(l)
+    UTU_tilde = U_tilde.T.dot(U_tilde)
+    
+    known_ratings_per_item = [np.where(W.T[i])[0] for i in range(W.shape[1])]
+               
+    sigma_V_inv = [np.linalg.inv(outer_sum(U,known_ratings_per_item[j]) + UTU_tilde + I)
+                   for j in range(d)]
+                   
+    G3 = utility.gradient(X_est)
+    D = U.T.dot(G3)
+    
+    C = []
+    for j,vec in enumerate(D.T):
+        C.append(sigma_V_inv[j].dot(vec))
+    
+    G = []
+    for u_tilde in U_tilde:
+        g = []
+        for c in C:
+            g.append(u_tilde.dot(c))
+        G.append(g)
+        
+    gradient = np.array(G)
+    return gradient
     
 def theta(MF, X, X_antidote, init=None):
     ratings = pd.concat([X,X_antidote])
@@ -307,11 +342,9 @@ class gradient_descent_LS(opt_alg):
             X_antidote_hist.append(X_antidote.copy())
             error_hist.append(error)
             obj_value_hist.append(obj_new)
+            
+            G = compute_gradient_fast(MF,utility,X,X_antidote,U,V,U_tilde)
 
-            G = compute_gradient(MF,utility,X,X_antidote,U,V,U_tilde)
-            #~ print G.max()
-            #~ print G.min()
-            #~ print np.abs(G).min()
             alpha = optimal_stepsize(MF,X,X_antidote,utility,G,np.sign(self.stepsize),projection,self.steps)
             X_antidote_new = X_antidote - (np.sign(self.stepsize)*alpha*G)
             X_antidote = projection.project(X_antidote_new)
