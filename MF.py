@@ -161,7 +161,7 @@ class MF():
         
 class als_MF(MF):
     
-    def fit_model(self, ratings=None, max_iter=100, threshold=1e-6):
+    def fit_model(self, ratings=None, max_iter=50, threshold=1e-6):
         X = self.ratings if ratings is None else ratings
         self.ratings = X
         self.U, self.V = als.als(X, self.rank, self.lambda_, max_iter, threshold)

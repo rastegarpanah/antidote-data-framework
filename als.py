@@ -17,8 +17,9 @@ def als(X,k,lambda_,max_iter,threshold):
         V = np.zeros((d,k))
         X = X.T
         W = W.T.values
+        I = lambda_*np.eye(k)
         for j,x_j in enumerate(X):
-            v_j = np.linalg.solve(U[W[j]].T.dot(U[W[j]])+lambda_*np.eye(k), U[W[j]].T.dot(x_j[W[j]]))
+            v_j = np.linalg.solve(U[W[j]].T.dot(U[W[j]])+I, U[W[j]].T.dot(x_j[W[j]]))
             V[j] = v_j
         return V
 
@@ -27,8 +28,9 @@ def als(X,k,lambda_,max_iter,threshold):
         W = W.values
         n,d = X.shape
         U = np.zeros((n,k))
+        I = lambda_*np.eye(k)
         for i,x_i in enumerate(X):
-            u_i = np.linalg.solve(V[W[i]].T.dot(V[W[i]])+lambda_*np.eye(k), V[W[i]].T.dot(x_i[W[i]]))
+            u_i = np.linalg.solve(V[W[i]].T.dot(V[W[i]])+I, V[W[i]].T.dot(x_i[W[i]]))
             U[i] = u_i
         return U
 
@@ -36,23 +38,22 @@ def als(X,k,lambda_,max_iter,threshold):
     n,d = X.shape
     U = np.ones((n,k))
     V = solve_V(X,W,U)
-    n_known = W.sum().sum()
-    MSE = ((X - U.dot(V.T)).pow(2).sum().sum()*1.0)/n_known
-    MSEs=[MSE]
+    n_known = float(W.sum().sum())
+    RMSE = np.sqrt((X - U.dot(V.T)).pow(2).sum().sum()/n_known)
+    RMSEs=[RMSE]
     for i in range(max_iter):
         U_new = solve_U(X,W,V)
         V_new = solve_V(X,W,U)
-        MSE_new = ((X - U_new.dot(V_new.T)).pow(2).sum().sum()*1.0)/n_known
+        RMSE_new = np.sqrt((X - U_new.dot(V_new.T)).pow(2).sum().sum()/n_known)
         #if (MSE - MSE_new) < MSE*threshold:
-        if (MSE - MSE_new) < threshold:
-            MSEs.append(MSE_new)
+        if (RMSE - RMSE_new) < threshold:
+            RMSEs.append(RMSE_new)
             break
         else:
-            MSEs.append(MSE_new)
-            MSE = MSE_new
+            RMSEs.append(RMSE_new)
+            RMSE = RMSE_new
             U = U_new
             V = V_new
-    #~ print "Error history",MSEs
-    #~ print "iter:", i
+    print "Error history",RMSEs
+    print "iter:", i
     return U,V.T
-

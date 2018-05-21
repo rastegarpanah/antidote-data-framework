@@ -8,6 +8,7 @@ from abc import ABCMeta, abstractmethod
 import random 
 import timeit
 import itertools
+from functools import partial
 
 def outer_sum(M,indices):
         S = np.zeros((M.shape[1],M.shape[1]))
@@ -183,6 +184,67 @@ def compute_gradient_fast(MF,utility, X, X_antidote, U, V, U_tilde):
     gradient = np.array(G)
     return gradient
     
+def compute_gradient_fast3(MF,utility, X, X_antidote, U, V, U_tilde):
+    X_est = U.dot(V)
+    U = U.values
+    U_tilde = U_tilde.values
+    V = V.T.values
+    W = ~np.isnan(X).values
+
+    n,l = U.shape
+    d = V.shape[0]
+
+    I = MF.lambda_*np.eye(l)
+    UTU_tilde = U_tilde.T.dot(U_tilde)
+    
+    known_ratings_per_item = [np.where(W.T[i])[0] for i in range(W.shape[1])]
+               
+    sigma_V_inv = [np.linalg.inv(outer_sum(U,known_ratings_per_item[j]) + UTU_tilde + I)
+                   for j in range(d)]
+                   
+    G3 = utility.gradient(X_est)
+    D = G3.T.dot(U)
+    
+    C = []
+    for j,vec in enumerate(D):
+        C.append(vec.dot(sigma_V_inv[j]))
+    
+    G = []
+    for u_tilde in U_tilde:
+        g = []
+        for c in C:
+            g.append(c.dot(u_tilde))
+        G.append(g)
+        
+    gradient = np.array(G)
+    return gradient
+    
+def compute_gradient_fast2(MF,utility, X, X_antidote, U, V, U_tilde):
+    X_est = U.dot(V)
+    U = U.values
+    U_tilde = U_tilde.values
+    V = V.T.values
+    W = ~np.isnan(X).values
+
+    n,l = U.shape
+    d = V.shape[0]
+
+    I = MF.lambda_*np.eye(l)
+    UTU_tilde = U_tilde.T.dot(U_tilde)
+    
+    known_ratings_per_item = [np.where(W.T[i])[0] for i in range(W.shape[1])]
+               
+    sigma_V_inv = [np.linalg.inv(outer_sum(U,known_ratings_per_item[j]) + UTU_tilde + I)
+                   for j in range(d)]
+                   
+    G3 = utility.gradient(X_est)
+    D = U.T.dot(G3)
+    C = [sigma_V_inv[j].dot(vec) for j,vec in enumerate(D.T)]
+    G = [ [u_tilde.dot(c) for c in C] for u_tilde in U_tilde]
+        
+    gradient = np.array(G)
+    return gradient
+    
 def theta(MF, X, X_antidote, init=None):
     ratings = pd.concat([X,X_antidote])
     pred,error = MF.fit_model(ratings)
@@ -222,7 +284,7 @@ def optimal_stepsize(MF,X,X_antidote,utility,G,direction,projection,steps):
 def LineSearch_steps(max_step,num_steps):
     return [(1.0*max_step)/10**k for k in range(num_steps)]
 
-def single_antidote_hueristic(MF, X, projection, utility, direction,threshold=1e-6):
+def single_antidote_hueristic(MF, X, projection, utility, direction,threshold=1e-8):
     X_est,error = MF.fit_model(X)
     U = MF.get_U()
     G = utility.gradient(X_est)
@@ -232,6 +294,13 @@ def single_antidote_hueristic(MF, X, projection, utility, direction,threshold=1e
     a = np.where(np.abs(a)<threshold, 0, a)
     return (np.sign(a)+1.0)*(projection.max_edge/2.0)
     
+def generate_random_antidote(X, budget, max_edge):
+    n,d = X.shape
+    initial_data = max_edge*np.random.rand(budget,d)
+    new_users = ['u%d'%(i+1) for i in range(budget)]
+    X_antidote = pd.DataFrame(initial_data.copy(), index=new_users, columns=X.columns) 
+    return X_antidote
+
 
 class projection():
     
@@ -325,6 +394,8 @@ class gradient_descent_LS(opt_alg):
         
         obj = np.sign(self.stepsize)*np.inf
         t=0
+        first_iteration = True
+        
         for i in range(self.max_iter):
             U, U_tilde, V, error = theta(MF,X,X_antidote)
             obj_new = utility.evaluate(U.dot(V))
@@ -342,10 +413,20 @@ class gradient_descent_LS(opt_alg):
             X_antidote_hist.append(X_antidote.copy())
             error_hist.append(error)
             obj_value_hist.append(obj_new)
-            
-            G = compute_gradient_fast(MF,utility,X,X_antidote,U,V,U_tilde)
 
-            alpha = optimal_stepsize(MF,X,X_antidote,utility,G,np.sign(self.stepsize),projection,self.steps)
+            G = compute_gradient_fast3(MF,utility,X,X_antidote,U,V,U_tilde)
+            
+            #choose step size
+            if first_iteration:
+                first_iteration = False
+                if self.steps is None:
+                    largest_step = -(np.rint(np.log10(np.abs(G).max()))-2)
+                    steps = LineSearch_steps(10**largest_step,6)
+                else:
+                    steps = self.steps
+       
+            alpha = optimal_stepsize(MF,X,X_antidote,utility,G,np.sign(self.stepsize),projection,steps)
+            
             X_antidote_new = X_antidote - (np.sign(self.stepsize)*alpha*G)
             X_antidote = projection.project(X_antidote_new)
             
