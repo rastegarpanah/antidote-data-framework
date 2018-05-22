@@ -54,6 +54,6 @@ def als(X,k,lambda_,max_iter,threshold):
             RMSE = RMSE_new
             U = U_new
             V = V_new
-    print "Error history",RMSEs
-    print "iter:", i
+    #print "Error history",RMSEs
+    #print "iter:", i
     return U,V.T

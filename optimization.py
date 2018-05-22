@@ -148,43 +148,8 @@ def compute_gradient(MF,utility, X, X_antidote, U, V, U_tilde):
     
     gradient = G1.dot((G2.dot(G3)).reshape(G1.shape[1],1,order='F'))
     return gradient.reshape((X_antidote.shape[0],X_antidote.shape[1]))
-
+    
 def compute_gradient_fast(MF,utility, X, X_antidote, U, V, U_tilde):
-    X_est = U.dot(V)
-    U = U.values
-    U_tilde = U_tilde.values
-    V = V.T.values
-    W = ~np.isnan(X).values
-
-    n,l = U.shape
-    d = V.shape[0]
-
-    I = MF.lambda_*np.eye(l)
-    UTU_tilde = U_tilde.T.dot(U_tilde)
-    
-    known_ratings_per_item = [np.where(W.T[i])[0] for i in range(W.shape[1])]
-               
-    sigma_V_inv = [np.linalg.inv(outer_sum(U,known_ratings_per_item[j]) + UTU_tilde + I)
-                   for j in range(d)]
-                   
-    G3 = utility.gradient(X_est)
-    D = U.T.dot(G3)
-    
-    C = []
-    for j,vec in enumerate(D.T):
-        C.append(sigma_V_inv[j].dot(vec))
-    
-    G = []
-    for u_tilde in U_tilde:
-        g = []
-        for c in C:
-            g.append(u_tilde.dot(c))
-        G.append(g)
-        
-    gradient = np.array(G)
-    return gradient
-    
-def compute_gradient_fast3(MF,utility, X, X_antidote, U, V, U_tilde):
     X_est = U.dot(V)
     U = U.values
     U_tilde = U_tilde.values
@@ -208,15 +173,9 @@ def compute_gradient_fast3(MF,utility, X, X_antidote, U, V, U_tilde):
     C = []
     for j,vec in enumerate(D):
         C.append(vec.dot(sigma_V_inv[j]))
-    
-    G = []
-    for u_tilde in U_tilde:
-        g = []
-        for c in C:
-            g.append(c.dot(u_tilde))
-        G.append(g)
-        
-    gradient = np.array(G)
+    C = np.array(C)
+    G = C.dot(U_tilde.T)
+    gradient = G.T
     return gradient
     
 def compute_gradient_fast2(MF,utility, X, X_antidote, U, V, U_tilde):
@@ -393,13 +352,13 @@ class gradient_descent_LS(opt_alg):
         error_hist = []
         
         obj = np.sign(self.stepsize)*np.inf
-        t=0
+        t=1
         first_iteration = True
         
         for i in range(self.max_iter):
             U, U_tilde, V, error = theta(MF,X,X_antidote)
             obj_new = utility.evaluate(U.dot(V))
-            print obj_new
+            print "obj_new: ",obj_new
             if np.abs(obj - obj_new) < 1e-6:
                 break
             if np.sign(self.stepsize)*(obj - obj_new) < self.threshold*obj:
@@ -409,22 +368,24 @@ class gradient_descent_LS(opt_alg):
                     t+= 1
             else:
                 obj = obj_new
-                t = 0
+                t = 1
             X_antidote_hist.append(X_antidote.copy())
             error_hist.append(error)
             obj_value_hist.append(obj_new)
-
-            G = compute_gradient_fast3(MF,utility,X,X_antidote,U,V,U_tilde)
+            
+            G = compute_gradient_fast(MF,utility,X,X_antidote,U,V,U_tilde)
             
             #choose step size
             if first_iteration:
                 first_iteration = False
                 if self.steps is None:
-                    largest_step = -(np.rint(np.log10(np.abs(G).max()))-2)
-                    steps = LineSearch_steps(10**largest_step,6)
+                    largest_step = -(np.rint(np.log10(np.abs(G).max()))-1)
+                    steps = LineSearch_steps(10**largest_step,4)
                 else:
                     steps = self.steps
-       
+            
+            print "max G",np.abs(G).max()
+            print "steps",steps
             alpha = optimal_stepsize(MF,X,X_antidote,utility,G,np.sign(self.stepsize),projection,steps)
             
             X_antidote_new = X_antidote - (np.sign(self.stepsize)*alpha*G)
