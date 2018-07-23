@@ -42,7 +42,7 @@ def read_movielens_small(n_movies, n_users, data_dir='Data/MovieLens-small'):
     ratings = ratings.T
     return ratings, movie_genres
 
-def read_movielens_1M(n_movies, n_users, data_dir='Data/MovieLens-1M'):
+def read_movielens_1M(n_movies, n_users, top_users, data_dir='Data/MovieLens-1M'):
     # get ratings
     df = pd.read_table('{}/ratings.dat'.format(data_dir),names=['UserID','MovieID','Rating','Timestamp'], 
                        sep='::', engine='python')
@@ -74,14 +74,15 @@ def read_movielens_1M(n_movies, n_users, data_dir='Data/MovieLens-1M'):
     rows = num_ratings.nlargest(n_movies)
     ratings = ratings.loc[rows.index]
     
-    #select the top n_users that have the most number of ratings
-    num_ratings = (~ratings.isnull()).sum(axis=0)
-    cols = num_ratings.nlargest(n_users)
-    ratings = ratings[cols.index]
-    
-    #~ #pick first users in order 
-    #~ cols = ratings.columns[0:n_users]
-    #~ ratings = ratings[cols]
+    if top_users:
+        #select the top n_users that have the most number of ratings
+        num_ratings = (~ratings.isnull()).sum(axis=0)
+        cols = num_ratings.nlargest(n_users)
+        ratings = ratings[cols.index]
+    else:
+        #pick first users in order 
+        cols = ratings.columns[0:n_users]
+        ratings = ratings[cols]
 
     ratings = ratings.T
     return ratings, movie_genres, user_info
@@ -161,7 +162,7 @@ class MF():
         
 class als_MF(MF):
     
-    def fit_model(self, ratings=None, max_iter=50, threshold=1e-6):
+    def fit_model(self, ratings=None, max_iter=50, threshold=1e-5):
         X = self.ratings if ratings is None else ratings
         self.ratings = X
         self.U, self.V = als.als(X, self.rank, self.lambda_, max_iter, threshold)

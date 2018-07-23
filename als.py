@@ -43,7 +43,7 @@ def als(X,k,lambda_,max_iter,threshold):
     RMSEs=[RMSE]
     for i in range(max_iter):
         U_new = solve_U(X,W,V)
-        V_new = solve_V(X,W,U)
+        V_new = solve_V(X,W,U_new)
         RMSE_new = np.sqrt((X - U_new.dot(V_new.T)).pow(2).sum().sum()/n_known)
         #if (MSE - MSE_new) < MSE*threshold:
         if (RMSE - RMSE_new) < threshold:

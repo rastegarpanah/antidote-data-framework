@@ -118,7 +118,7 @@ def compute_gradient_slow(MF,utility, X, X_antidote, U, V, U_tilde):
     
     G1 = d_theta_wrt_antidote(U,V,U_tilde,W,W_antidote,MF.lambda_)
     G2 = d_est_wrt_theta(U,V)
-    G3 = utility.gradient(X_est) #d_utility_wrt_est
+    G3 = utility.gradient(X_est).flatten() #d_utility_wrt_est
 
     n,d = X.shape
     if n*d<10000:
@@ -169,10 +169,7 @@ def compute_gradient_fast(MF,utility, X, X_antidote, U, V, U_tilde):
                    
     G3 = utility.gradient(X_est)
     D = G3.T.dot(U)
-    
-    C = []
-    for j,vec in enumerate(D):
-        C.append(vec.dot(sigma_V_inv[j]))
+    C = [vec.dot(sigma_V_inv[j]) for j,vec in enumerate(D)]
     C = np.array(C)
     G = C.dot(U_tilde.T)
     gradient = G.T
@@ -237,15 +234,36 @@ def optimal_stepsize(MF,X,X_antidote,utility,G,direction,projection,steps):
         obj = utility.evaluate(U.dot(V))
         results.append((alpha,obj))
     best = min(results,key=lambda a:a[1]) if direction>0 else max(results,key=lambda a:a[1])
-    print best[0]
+    print "optimal step:", best[0]
     return best[0]
     
 def LineSearch_steps(max_step,num_steps):
     return [(1.0*max_step)/10**k for k in range(num_steps)]
+    
+def single_antidote_hueristic1(MF, X, projection, utility, direction,threshold):
+    n,d = X.shape
+    initial_data = 2.5 * np.ones((1,d))
+    X_antidote = pd.DataFrame(initial_data, index=['u1'], columns=X.columns)
+    U, U_tilde, V, error = theta(MF,X,X_antidote)
+    G = compute_gradient_fast(MF,utility,X,X_antidote,U,V,U_tilde)
+    a = (-1.0*np.sign(direction))*G
+    a = np.where(np.abs(a)<threshold, 0, a)
+    return (np.sign(a)+1.0)*(projection.max_edge/2.0)
 
-def single_antidote_hueristic(MF, X, projection, utility, direction,threshold=1e-8):
-    X_est,error = MF.fit_model(X)
-    U = MF.get_U()
+def generate_antidote_single_step(MF, X, budget, projection, utility, direction,threshold):
+    n,d = X.shape
+    initial_data = 2.5 * np.ones((budget,d))
+    new_users = ['u%d'%(i+1) for i in range(budget)]
+    X_antidote = pd.DataFrame(initial_data, index=new_users, columns=X.columns)
+    U, U_tilde, V, error = theta(MF,X,X_antidote)
+    G = compute_gradient_fast(MF,utility,X,X_antidote,U,V,U_tilde)
+    a = (-1.0*np.sign(direction))*G
+    a = np.where(np.abs(a)<threshold, 0, a)
+    X_tilde = (np.sign(a)+1.0)*(projection.max_edge/2.0)
+    X_antidote = pd.DataFrame(X_tilde, index=new_users, columns=X.columns)
+    return X_antidote
+
+def single_antidote_hueristic2(X_est, U, projection, utility, direction,threshold):
     G = utility.gradient(X_est)
     b = U.sum(axis=1)
     gradient_appr = b.dot(G)
@@ -379,13 +397,24 @@ class gradient_descent_LS(opt_alg):
             if first_iteration:
                 first_iteration = False
                 if self.steps is None:
-                    largest_step = -(np.rint(np.log10(np.abs(G).max()))-1)
-                    steps = LineSearch_steps(10**largest_step,4)
+                    power = np.rint(np.log10(np.abs(G).max()))
+                    
+                    #~ largest_step = -power+6 #polarization
+                    #~ steps = LineSearch_steps(10**largest_step,8)
+                    
+                    largest_step = -power+5 
+                    steps = LineSearch_steps(10**largest_step,8)
+                    
+                    #~ largest_step = -power+3 #genres
+                    #~ steps = LineSearch_steps(10**largest_step,6)
                 else:
                     steps = self.steps
+                print "steps",steps
             
-            print "max G",np.abs(G).max()
-            print "steps",steps
+            #~ print np.sort(G.flatten())
+            #~ print np.argmax(G)
+            #print "max G",np.abs(G).max()
+
             alpha = optimal_stepsize(MF,X,X_antidote,utility,G,np.sign(self.stepsize),projection,steps)
             
             X_antidote_new = X_antidote - (np.sign(self.stepsize)*alpha*G)
