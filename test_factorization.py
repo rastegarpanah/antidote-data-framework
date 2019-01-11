@@ -19,8 +19,8 @@ n_known_item = (~X.isnull()).sum(axis=0).sort_values()
 n_known_user = (~X.isnull()).sum(axis=1).sort_values()
 
 #Factorization parameters
-rank = 8
-lambda_ = 0.1 #Ridge regularizer parameter
+rank = 20
+lambda_ = 20 #Ridge regularizer parameter
 
 #Initiate a recommender system of type ALS
 RS = MF.als_MF(rank,lambda_)

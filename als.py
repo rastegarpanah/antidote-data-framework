@@ -8,8 +8,10 @@ def als(X,k,lambda_,max_iter,threshold):
            V --- k x d matrix
  Input:
            X --- n x d input matrix
-           W --- n x d binary matrix indicating known elements in X
-           Lambda --- Ridge regularizer parameter 
+           k --- rank estimate
+           Lambda --- Ridge regularizer parameter
+           max_iter --- maximum number of iterations
+           threshold --- stopping criterion(minimum improvement in RMSE) 
     """
     def solve_V(X,W,U):
         X = X.values
@@ -45,7 +47,6 @@ def als(X,k,lambda_,max_iter,threshold):
         U_new = solve_U(X,W,V)
         V_new = solve_V(X,W,U_new)
         RMSE_new = np.sqrt((X - U_new.dot(V_new.T)).pow(2).sum().sum()/n_known)
-        #if (MSE - MSE_new) < MSE*threshold:
         if (RMSE - RMSE_new) < threshold:
             RMSEs.append(RMSE_new)
             break
@@ -55,5 +56,4 @@ def als(X,k,lambda_,max_iter,threshold):
             U = U_new
             V = V_new
     #print "Error history",RMSEs
-    #print "iter:", i
-    return U,V.T
+    return U, V.T
