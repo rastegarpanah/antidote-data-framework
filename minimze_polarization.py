@@ -46,7 +46,7 @@ print 'budget:',budget
 
 #------------------------find optimal antidote--------------------------
 runs = 3
-stepsize = 1.0 #here it only determines the direction if the gradient step. Positive values will minimize the objective and negative values will maximize the objective
+stepsize = 1.0 #this only determines the direction if the gradient step. Positive values will minimize the objective and negative values will maximize it
 projection = OPT.projection((0,5))
 max_iter = 20
 threshold = 0.1
