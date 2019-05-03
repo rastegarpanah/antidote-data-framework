@@ -301,6 +301,7 @@ class opt_alg():
         
         results = []
         for i in range(n_runs):
+            print "Run %d"%(i+1)
             if isinstance(init, basestring):
                 if init == 'random':
                     initial_data = projection.max_edge*np.random.rand(budget,d)
