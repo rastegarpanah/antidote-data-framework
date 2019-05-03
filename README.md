@@ -10,7 +10,7 @@ of each social objective is provided in the paper. A new objective functions can
 
 - ("optimization.py") contains different optimization algorithms for generating antidote data. gradient_descent_LS() is the implementation of the projected gradient descent algorithm presented as Algorithm 1 in the paper. The optimal step size is selected via a grid search.
 
-- ("minimze_polarization.py") provides an example of how to use the framework. A subset of 300 users and 500 movies from the MovieLens 1M dataset is selected and antidote data is generated to minimize the average user polarization per movie. The resulting plots show the effect of antidote data on the rating estimations. Details about setting the parameters of the optimization framework are provided in the code.
+- ("minimze_polarization.py") provides an example of how to use the framework. A subset of 300 users and 500 movies from the MovieLens 1M dataset is selected and antidote data is generated to minimize the average user polarization per movie. The resulting plots show the effect of antidote data on the rating estimations. More details about how to set the parameters of the optimization framework are provided in the code.
 
 We have used the MovieLens 1M Dataset: F. Maxwell Harper and Joseph A. Konstan. 2015. The MovieLens Datasets: History
 and Context. ACM Transactions on Interactive Intelligent Systems (TiiS) 5, 4, Article 19 (December 2015), 19 pages. DOI=http://dx.doi.org/10.1145/2827872
