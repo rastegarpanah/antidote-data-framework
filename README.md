@@ -12,6 +12,8 @@ of each social objective is provided in the paper. A new objective functions can
 
 - ("minimze_polarization.py") provides an example of how to use the framework. A subset of 300 users and 500 movies from the MovieLens 1M dataset is selected and antidote data is generated to minimize the average user polarization per movie. The resulting plots show the effect of antidote data on the rating estimations. Details about setting the parameters of the optimization framework are provided in the code.
 
+We have used the MovieLens 1M Dataset: F. Maxwell Harper and Joseph A. Konstan. 2015. The MovieLens Datasets: History
+and Context. ACM Transactions on Interactive Intelligent Systems (TiiS) 5, 4, Article 19 (December 2015), 19 pages. DOI=http://dx.doi.org/10.1145/2827872
 
-
+For reproducing the results you can download the dataset from (https://grouplens.org/datasets/movielens/) and place it in the 'Data/' folder.
 
